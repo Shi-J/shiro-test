@@ -1,0 +1,8 @@
+shiro网址 : http://shiro.apache.org/
+shiro下载地址 : http://www.apache.org/dyn/closer.cgi/shiro/1.5.1/shiro-root-1.5.1-source-release.zip(jdk1.8+  maven3.03+)
+
+shiro登录测试账号
+账号    密码      角色
+user   123456    user
+shij   123456    user
+admin  123456    admin

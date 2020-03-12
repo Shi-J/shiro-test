@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!--    配置SecurityManager-->
+    <bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+        <property name="cacheManager" ref="cacheManager"/>
+        <property name="realm" ref="jdbcRealm"></property>
+        <!--    授权需要去读配置SecurityManager的realms 所以要把realm 编写在securityManager中-->
+        <!--        <property name="realms">-->
+        <!--            <list>-->
+        <!--                <ref bean="jdbcRealm"></ref>-->
+        <!--            </list>-->
+        <!--        </property>-->
+
+        <!--    设置自动登录过期时间 10秒-->
+    </bean>
+
+    <!--  配置cacheManager 会起到缓存效果-->
+    <bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+        <!--       创建ehcache.xml文件 -->
+        <property name="cacheManagerConfigFile" value="classpath:ehcache.xml"/>
+    </bean>
+
+
+    <!--
+           配置realm
+           配置了自己编写的实现realm的类
+    -->
+    <bean id="jdbcRealm" class="com.stone.shiro.web.realm.ShiroRealm">
+        <!--    通过credentialsMatcher属性进行密码加密操作-->
+        <property name="credentialsMatcher">
+            <!--    通过HashedCredentialsMatcher来选择加密方法-->
+            <bean class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+                <!--    hashAlgorithmName指定加密方法-->
+                <property name="hashAlgorithmName" value="MD5"></property>
+                <!--    hashIterations指定加密次数-->
+                <property name="hashIterations" value="2"></property>
+            </bean>
+        </property>
+    </bean>
+
+    <!--
+        配置LifecycleBeanPostProcessor 可以自动的来调用配置在spring ioc 容器中 shiro bean的生命周期
+    -->
+    <bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor"/>
+
+    <!--
+         启动ioc 容器中使用shiro的注解 ,并且要再配置了 LifecycleBeanPostProcessor才可以使用
+    -->
+    <bean class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator"
+          depends-on="lifecycleBeanPostProcessor"/>
+    <bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+        <property name="securityManager" ref="securityManager"/>
+    </bean>
+
+
+    <!--
+         配置 ShiroFilter
+        loginUrl 没有认证时即没有登录时页面
+        successUrl 登录成功页面
+        unauthorizedUrl 没有权限页面
+
+        注意点 :
+        1. ShiroFilterFactoryBean的id必须和web.xml中配置的DelegatingFilterProxy <filter-name>标签值一致
+
+
+    -->
+    <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+        <property name="securityManager" ref="securityManager"/>
+        <property name="loginUrl" value="/login.jsp"/>
+        <property name="successUrl" value="/index.jsp"/>
+        <property name="unauthorizedUrl" value="/unauthorized.jsp"/>
+
+        <!--    filterChainDefinitionMap控制shiro框架的访问资源和权限管理-->
+        <property name="filterChainDefinitionMap" ref="filterChainDefinitionMap"></property>
+
+        <!--
+            配置哪些页面收保护，并且访问这些页面的权限
+            格式 ： url = 访问权限
+            anon 可以被匿名访问
+            authc 必须认证之后才能访问
+            logout 退出登录
+            采取的第一次优先匹配，及有顺序，编写时需要注意
+        -->
+
+        <!-- 配死在xml中-->
+        <property name="filterChainDefinitions">
+            <value>
+
+                /login.jsp = anon
+                /shiro/login = anon
+                /shiro/logout = logout
+
+                /user.jsp = roles[user]
+                /admin.jsp = roles[admin]
+
+                /** =authc
+            </value>
+        </property>
+
+    </bean>
+
+
+    <!--   配置一个LinkedHashMap bean 用来处理资源和权限 代替filterChainDefinitions, 通过实例工厂方式-->
+    <bean id="definitionMapBuilder" class="com.stone.shiro.web.factory.FilterChainDefinitionMapBuilder"></bean>
+    <!--  实例工厂  -->
+    <bean id="filterChainDefinitionMap" factory-bean="definitionMapBuilder"
+          factory-method="buildfilterChainDefinitionMap"></bean>
+
+    <!--    添加注解shiro权限bean-->
+    <bean class="com.stone.shiro.web.service.ShiroService"></bean>
+
+</beans>
